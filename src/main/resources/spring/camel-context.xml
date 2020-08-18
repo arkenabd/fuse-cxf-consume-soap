@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:cxf="http://camel.apache.org/schema/cxf"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="        http://www.springframework.org/schema/beans https://www.springframework.org/schema/beans/spring-beans.xsd        http://camel.apache.org/schema/spring       https://camel.apache.org/schema/spring/camel-spring.xsd http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd">
+    <bean class="org.mycompany.util.AddPojo" id="pojo" scope="singleton"/>
+    <bean class="org.tempuri.CalculatorSoap_CalculatorSoap_Client"
+        id="soapClient" scope="singleton"/>
+    <bean
+        class="org.mycompany.util.PossiblyCompressedInboundInterceptor" id="out"/>
+    <cxf:cxfEndpoint address="http://www.dneonline.com/calculator.asmx"
+        endpointName="CalculatorSoap" id="calculatorSoap"
+        loggingFeatureEnabled="true"
+        serviceClass="org.tempuri.CalculatorSoap" wsdlURL="http://www.dneonline.com/calculator.asmx?wsdl">
+        <cxf:inInterceptors>
+            <ref bean="out"/>
+        </cxf:inInterceptors>
+    </cxf:cxfEndpoint>
+    <camelContext id="camel" streamCache="true" xmlns="http://camel.apache.org/schema/spring">
+        <dataFormats>
+            <json allowJmsType="false" allowUnmarshallType="true"
+                contentTypeHeader="false"
+                enableJaxbAnnotationModule="false" id="json-pojo-add"
+                library="Jackson" prettyPrint="false"
+                unmarshalTypeName="org.mycompany.util.AddPojo"
+                useDefaultObjectMapper="true" useList="false"/>
+        </dataFormats>
+        <restConfiguration bindingMode="off" component="restlet"
+            contextPath="/calculator" host="0.0.0.0" port="9875"/>
+        <rest id="rest-d9ea9ed9-0e34-4ff8-9899-0a64ac4e0a46">
+            <post id="b867e7dc-5111-4e6e-86d0-2ae9b15218b1" uri="/substract">
+                <to uri="direct:substract"/>
+            </post>
+            <post id="e4a701e0-b9b9-422e-8d60-edda440f7a1b" uri="/add">
+                <to uri="direct:add"/>
+            </post>
+        </rest>
+        <route id="add">
+            <from id="_from1" uri="direct:add"/>
+            <unmarshal id="_unmarshal1">
+                <custom ref="json-pojo-add"/>
+            </unmarshal>
+            <bean id="_bean1"
+                method="assignValue(${body.intA},${body.intB})" ref="pojo"/>
+            <log id="_log1" message="Body Request : ${body}"/>
+            <setHeader headerName="operationName" id="_setHeader1">
+                <constant>Add</constant>
+            </setHeader>
+            <to id="_to1" uri="cxf:bean:calculatorSoap"/>
+            <log id="_log2" message="result : ${body}"/>
+        </route>
+    </camelContext>
+</beans>
